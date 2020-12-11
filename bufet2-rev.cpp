@@ -54,20 +54,14 @@ struct interaction
 };
 
 /*
- * GO category node used for temporary storage of GO-gene associations
+ * Node used to save the data about each miRNA
  */
-struct goCatNode
+struct mNode
 {
-    string category;
     string name;
-    long int intersection=0;
-    long int go_size=0;
-    double left_overlap_proportion=0;
-    double center_overlap_proportion=0;
-    double right_overlap_proportion=0;
-    double mean_left_overlap=0;
-    double mean_center_overlap=0;
-    double mean_right_overlap=0;
+    double left_overlap, center_overlap, right_overlap;
+    double left_pvalue, center_pvalue, right_pvalue;
+    int size;
 };
 
 
@@ -125,50 +119,48 @@ geneInteractions interactions;
 goGenes_type goGenes;
 final_interactions_type finalInteractions;
 bits * map_all;
-vector<goCatNode> checkGO, noCheckGO;
 vector<float> i_counts;
 vector<long int> left_pvalues,right_pvalues,center_pvalues;
 go_names_type goNames;
 unordered_map<string,string_list> synonyms;
 unordered_set<string> genesGo;
+vector<mNode *> mList;
 /*
  * Global integer variables
  */
 int gene_count=1, miRNA_count=1,group_size=0,GOcount=0,thread_count;
 bool randomStatus=false;
 unsigned long int iterations;
+string ontQuery;
 
 /*
  * Function definitions(see explanations above each function)
  */
 void getInteractions(string);
 void getGOs(string);
-void getRandom(int,int,int);
 void writeOutput(string);
-void findIntersections(int,int);
+void findPvalues();
 void fixInteractions();
-void getMirnas(string);
+void getOntQuery(string);
 void calculateCounts();
 string trim(string mystr);
 string trim_chars_left(string,string);
 void getSynonyms(string,string);
-bool prepareRandom(int);
-
-
+bool rcomparison(mNode *, mNode *);
+bool lcomparison(mNode *, mNode *);
+bool ccomparison(mNode *, mNode *);
+bool finalComparison(mNode *, mNode *);
 
 
 int main(int argc, char* argv[])
 {   
-    thread_count=atoi(argv[6]);
-    thread *t= new thread[thread_count];
-    iterations=atoi(argv[5]);
-    map_all=new bits[iterations];
+    
     cout << "Reading GO category data" << endl;
     getGOs(argv[4]);
-    if (stoi(argv[9])==0)
+    if (stoi(argv[7])==0)
     {
         cout << "Reading synonym data" << endl;
-        getSynonyms(argv[7],argv[8]);
+        getSynonyms(argv[5],argv[6]);
     }
     else
     {
@@ -177,50 +169,15 @@ int main(int argc, char* argv[])
     cout << "Reading interaction data" << endl;
     getInteractions(argv[1]);
     
-    if (stoi(argv[9])==0)
+    if (stoi(argv[7])==0)
     {
         cout << "Synonym matching for interactions" << endl;
     }
     fixInteractions();
-    cout<< "Calculating query GO overlap" << endl;
-    getMirnas(argv[3]);
-    cout << "Getting Random miRNA groups" << endl;
-    /*
-     * Spawn multiple threads to calculate unions
-     */
-    randomStatus=prepareRandom(group_size);
-    if ((thread_count>1) && (!randomStatus))
-    {
-        if ((group_size==1) && (iterations< finalInteractions.size()))
-        {
-            getRandom(group_size,0,1);
-        }
-        else
-        {
-            for (int u=0; u<thread_count; u++)
-                t[u]=thread(getRandom,group_size,u,thread_count);
-        
-            for (int u=0; u<thread_count; u++)
-                t[u].join();
-        }
-    }
-    else
-        getRandom(group_size,0,1);
-    calculateCounts();
-    cout << "Getting GO overlap for " << iterations << " random miRNA groups" << endl;
-    /*
-     * Spawn multiple threads to calculate intersections
-     */
-    if (thread_count>1)
-    {
-        for (int u=0; u<thread_count; u++)
-            t[u]=thread(findIntersections,u,thread_count);
-        
-        for (int u=0; u<thread_count; u++)
-            t[u].join();
-    }
-    else
-        findIntersections(0,1);
+    cout<< "Reading query term" << endl;
+    getOntQuery(argv[3]);
+    cout << "Calculating p-values" << endl;
+    findPvalues();
     
     cout << "Writing final output" << endl;
     writeOutput(argv[2]);
@@ -235,13 +192,10 @@ int main(int argc, char* argv[])
  *
  * @param filename: the input file specified by the user
  */
-void getMirnas(string filename)
+void getOntQuery(string filename)
 {
     
-    string line,miRNA;
-    int notFound=0,found=0, target_genes;
-    double intersection;
-    bitset<BSIZE> gene_map;
+    string line,query;
     /*
      * Read file
      */
@@ -251,91 +205,27 @@ void getMirnas(string filename)
     if (inFile.is_open())
     {
 
-        while(getline(inFile,line))
-        {
-            miRNA=trim(line);
-            /*
-             * Calculate genes targeted by the given miRNAs
-             * 
-             * If they do not exist in our hash table
-             * increase the counter to be printed as soon as the
-             * process ends
-             */
-            
-            if (miRNA=="") continue;
-            if (miRNAs.find(miRNA)!=miRNAs.end())
-            {
-                found++;
-                gene_map |= (*finalInteractions[miRNAs[miRNA]]);
-
-            }
-            else
-            {
-                notFound++;
-            }
-        }
-
-        inFile.close();
-        cout << "Found " << found << " differentially expressed miRNAs" << endl;
-        if (notFound)
-            cout << notFound << " miRNAs were not found in the set of interactions" << endl;
-        group_size=found;
-        target_genes=gene_map.count();
+        getline(inFile,line);
+        query=trim(line);
         /*
-         * Calculate GO categories associated with given miRNAs.
-         * Those are the candidates for which to calculate an empirical p-value.
-         * The rest have a pvalue=1.
-         *
-         * Add the results to a special vector
+         * Calculate genes targeted by the given miRNAs
+         * 
+         * If they do not exist in our hash table
+         * increase the counter to be printed as soon as the
+         * process ends
          */
-        for (goGenes_type::iterator git=goGenes.begin(); git!=goGenes.end(); git++)
-        {   
-            /*
-             * If the miRNA set has any common genes with a go category, then 
-             * add it to the list as a candidate or else add it to a special list
-             */
-            int total_go=git->second->size();
-            intersection=0;
-            
-            for (int k=0; k<total_go; k++)
-            {
-                if (gene_map[(*(git->second))[k]]==1)
-                    intersection++;
-            }
-            
-            if (intersection>0)
-            {
-                goCatNode newGO;
-                
-                newGO.category=git->first;
-                newGO.go_size= git->second->size();
-                // newGO.intersection=intersection;
-                newGO.left_overlap_proportion= intersection/target_genes;
-                newGO.right_overlap_proportion= intersection/total_go;
-                newGO.center_overlap_proportion= intersection/(total_go+target_genes-intersection);
-                newGO.name=goNames[git->first];
-                checkGO.push_back(newGO);
-                left_pvalues.push_back(0);
-                center_pvalues.push_back(0);
-                right_pvalues.push_back(0);
-                GOcount++;
 
-            }
-            else
-            {
-                goCatNode newGO;
+        ontQuery=query;
+        inFile.close();
+    }
 
-                newGO.category=git->first;
-                newGO.go_size= git->second->size();
-                // newGO.intersection=0;
-                newGO.left_overlap_proportion= 0.0;
-                newGO.right_overlap_proportion= 0.0;
-                newGO.center_overlap_proportion= 0.0;
-                newGO.name=goNames[git->first];
-                noCheckGO.push_back(newGO);
-            }
-
-        }
+    if (ontQuery=="")
+    {
+        cout << "No ontology terms found in the file. Exiting..." << endl;
+    }
+    if (goGenes.find(query)==goGenes.end())
+    {
+        cout << "Ontology term " << query << " was not found in the ontology file" << endl;
     }
 
 }
@@ -618,137 +508,149 @@ void fixInteractions()
 
 }
 
-/* 
- * Check whether the input size is 1.
- * If so the random groups become the 
- * gene sets of the miRNAs in the dataset.
- * 
- * @param size: size of the random miRNA sets
- */
-bool prepareRandom(int size)
-{
-    unsigned long int total_interactions=finalInteractions.size();
-
-    if ((size==1) && (total_interactions < iterations))
-    {
-        int j=0;
-        cout << "You have selected " << iterations << " iterations, but your query contains only 1 miRNA. As a result, only " 
-                                     << total_interactions << " iterations can be performed." << endl;
-        iterations=total_interactions;
-        for (final_interactions_type::iterator fit=finalInteractions.begin(); fit!=finalInteractions.end(); fit++, j++)
-        {
-            map_all[j]=fit->second;
-        }
-        return true;
-
-    }
-    else
-    {
-        return false;
-    }
-}
 
 /*
- * Get a number of random miRNA sets of size m and calculate their interactions 
- * using bitwise operations.
- * The number of random groups is specified by the "iterations" variable
- * The result  will be saved in a vector of bitsets
- * Internal IDs are used
+ * This function calculates the p-values between the query and
+ * all miRNAs
  *
- * @param size: size of the random miRNA sets
- * @param t_num: the thread number
- * @param inc : increment step (the number of threads to be used)
  */
-
-void getRandom(int size,int t_num, int inc)
-{
-    /*
-     * initialize random number generator
-     */
-    random_device rd;
-    mt19937 gen(rd());
-    uniform_int_distribution<> randMirna(1,miRNA_count-1);
-
-    
-    for (unsigned long int i=t_num; i<iterations; i+=inc)
-    {
-        
-        /*
-         * Get n random internal IDs where n=size
-         * 
-         * Bitwise OR for to calculate targeted genes
-         */
-        bits gene_map=new bitset<BSIZE>;
-        
-        for (int j=0; j<size; j++)
-        {
-            int id;
-            id=randMirna(gen);
-            (*gene_map) |=(*finalInteractions[id]);
-        }
-        map_all[i]=gene_map;
-    }
-    
-}
-
-/*
- * This function calculates the intsections for all random miRNA sets
- * for the candidate GO categories and calculate the sets with greater overlap
- * than the queried one
- *
- * @param t_num: the thread number
- * @param inc : increment step (the number of threads to be used)
- */
-void findIntersections(int t_num,int inc)
+void findPvalues()
 {
     bits gene_map;
     vec go_map;
-    /*
-     * Depending on the thread select specific GO categories to check
-     * without overlap between cores
-     */
-    long int total=checkGO.size();
+            
+    go_map=goGenes[ontQuery];
+    int total_k=go_map->size();
 
-    for (int git=t_num; git<total; git+=inc)
+    for (genedata::iterator it=miRNAs.begin(); it!=miRNAs.end(); it++)
     {   
+        gene_map=finalInteractions[it->second];
+        int mcount=gene_map->count();
+        mNode * node=new mNode;
+        node->name=it->first;
+        node->size=mcount;
+        double intersection=0;
         
-        go_map=goGenes[checkGO[git].category];
-        int total_k=go_map->size();
-
-        for (unsigned long int i=0; i<iterations; i++)
-        {   
-            bitset<BSIZE> result;
-            double intersection=0;
-
-            gene_map=map_all[i];
-            
-            for (int k=0; k<total_k; k++)
-            {
-                if ((*gene_map)[(*go_map)[k]]==1)
-                        intersection++;
-            }
-            double left_overlap=intersection/i_counts[i];
-            double right_overlap=intersection/total_k;
-            double center_overlap=intersection/(i_counts[i]+total_k-intersection);
-
-            checkGO[git].mean_left_overlap+=left_overlap;
-            checkGO[git].mean_right_overlap+=right_overlap;
-            checkGO[git].mean_center_overlap+=center_overlap;
-            if (left_overlap >= checkGO[git].left_overlap_proportion)
-            {   
-                left_pvalues[git]++;
-            }
-            if (right_overlap >= checkGO[git].right_overlap_proportion)
-            {   
-                right_pvalues[git]++;
-            }
-            if (center_overlap >= checkGO[git].center_overlap_proportion)
-            {   
-                center_pvalues[git]++;
-            }
-            
+        
+        
+        for (int k=0; k<total_k; k++)
+        {
+            if ((*gene_map)[(*go_map)[k]]==1)
+                    intersection++;
         }
+        node->left_overlap=intersection/mcount;
+        node->right_overlap=intersection/total_k;
+        node->center_overlap=intersection/(mcount+total_k-intersection);
+
+        mList.push_back(node);
+            
     }
+
+
+    double total_m, start, stop;
+    /*
+     * Get left p-values
+     */
+    sort(mList.begin(),mList.end(),lcomparison);
+    total_m=mList.size();
+    stop=total_m-1;
+    start=stop-1;
+
+    for(;(stop>=0 && start>=-1);)
+    {
+        while( (start>=0) && ( (mList[stop]->left_overlap - mList[start]->left_overlap) <1e-7 ) )
+        {
+            start--;
+        }
+        /*
+         * The for any given overlap the p-value is defined as the number of elements in the table,
+         * that are greater or equal to the given sample.
+         * This means that if the overlap is the same as some elements in the sorted table, then
+         * the p-value is proportional to the index of the element with the lowest index. 
+         * So if this index is in position=start+1, the pvalue is total-(position+1)/total
+         * 
+         * This can never lead to zero p-values.
+         */
+        double pvalue=(total_m-(start+1))/total_m;
+        for (int m=start+1; m<=stop; m++)
+        {
+            mList[m]->left_pvalue=pvalue;
+        }
+        stop=start;
+        start=stop-1;
+        
+    }
+
+    /*
+     * Get two-sided p-values
+     */
+    sort(mList.begin(),mList.end(),ccomparison);
+    total_m=mList.size();
+    stop=total_m-1;
+    start=stop-1;
+
+    for(;(stop>=0 && start>=-1);)
+    {
+        while( (start>=0) && ( (mList[stop]->center_overlap - mList[start]->center_overlap) <1e-7 ) )
+        {
+            start--;
+        }
+        /*
+         * The for any given overlap the p-value is defined as the number of elements in the table,
+         * that are greater or equal to the given sample.
+         * This means that if the overlap is the same as some elements in the sorted table, then
+         * the p-value is proportional to the index of the element with the lowest index. 
+         * So if this index is in position=start+1, the pvalue is total-(position+1)/total
+         * 
+         * This can never lead to zero p-values.
+         */
+        double pvalue=(total_m-(start+1))/total_m;
+        for (int m=start+1; m<=stop; m++)
+        {
+            mList[m]->center_pvalue=pvalue;
+        }
+        stop=start;
+        start=stop-1;
+        
+    }
+
+    /*
+     * Get right-sided p-values
+     */
+    sort(mList.begin(),mList.end(),rcomparison);
+    total_m=mList.size();
+    stop=total_m-1;
+    start=stop-1;
+
+    for(;(stop>=0 && start>=-1);)
+    {
+        while( ( (start>=0) && (mList[stop]->right_overlap - mList[start]->right_overlap) <1e-7 ) )
+        {
+            start--;
+        }
+        /*
+         * The for any given overlap the p-value is defined as the number of elements in the table,
+         * that are greater or equal to the given sample.
+         * This means that if the overlap is the same as some elements in the sorted table, then
+         * the p-value is proportional to the index of the element with the lowest index. 
+         * So if this index is in position=start+1, the pvalue is total-(position+1)/total
+         * 
+         * This can never lead to zero p-values.
+         */
+        double pvalue=(total_m-(start+1))/total_m;
+        for (int m=start+1; m<=stop; m++)
+        {
+            mList[m]->right_pvalue=pvalue;
+        }
+        stop=start;
+        start=stop-1;
+        
+    }
+    
+    /*
+     * Final sorting using two-sided p-value
+     */
+    sort(mList.begin(),mList.end(),finalComparison);
 }
 
 /*
@@ -759,7 +661,6 @@ void findIntersections(int t_num,int inc)
 void writeOutput(string filename)
 {
     ofstream outFile;
-    int total_check=checkGO.size(), total_n_check=noCheckGO.size();
 
     outFile.open(filename);
 
@@ -768,30 +669,21 @@ void writeOutput(string filename)
         /*
          * File header
          */
-        outFile << "GO-term-ID\tGO-term-size\t";
-        outFile << "Observed-Target-Left-Tailed-Overlap-Proportio\tMean-Random-Simulated-Left-Tailed-Overlap-Proportion\tLeft-tailed-empirical-p-value\t"; //Benjamini-Hochberg-0.05-FDR" << endl;
-        outFile << "Observed-Target-Two-Tailed-Overlap-Proportio\tMean-Random-Simulated-Two-Tailed-Overlap-Proportion\tTwo-tailed-empirical-p-value\t";
-        outFile << "Observed-Target-Right-Tailed-Overlap-Proportio\tMean-Random-Simulated-Right-Tailed-Overlap-Proportion\tRight-tailed-empirical-p-value";
+        outFile << "miRNA name\t#-miRNA-targets\t";
+        outFile << "Left-tailed-empirical-p-value\t"; //Benjamini-Hochberg-0.05-FDR" << endl;
+        outFile << "Two-tailed-empirical-p-value\t";
+        outFile << "Right-tailed-empirical-p-value";
         outFile << endl;
-        for (int i=0; i< total_check ; i++)
+        for (long unsigned int mi=0; mi < mList.size() ; mi++)
         {
-            outFile << checkGO[i].category << "~" << checkGO[i].name << "\t";
-            outFile << checkGO[i].go_size << "\t";
-            outFile << checkGO[i].left_overlap_proportion << "\t" << checkGO[i].mean_left_overlap/iterations << "\t" << (double) left_pvalues[i]/iterations << "\t";
-            outFile << checkGO[i].center_overlap_proportion << "\t" << checkGO[i].mean_center_overlap/iterations << "\t" << (double) center_pvalues[i]/iterations << "\t";
-            outFile << checkGO[i].right_overlap_proportion << "\t" << checkGO[i].mean_right_overlap/iterations << "\t" << (double) right_pvalues[i]/iterations << "\t";
+            outFile << mList[mi]->name << "\t" << mList[mi]->size << "\t";
+            outFile << mList[mi]->left_pvalue << "\t";
+            outFile << mList[mi]->center_pvalue << "\t";
+            outFile << mList[mi]->right_pvalue << "\t";
             outFile << endl;
         }
         
-        for (int i=0; i < total_n_check ; i++)
-        {
-            outFile << noCheckGO[i].category << "~" << noCheckGO[i].name << "\t";
-            outFile << noCheckGO[i].go_size << "\t";
-            outFile << "0\t-\t1.0\t";
-            outFile << "0\t-\t1.0\t";
-            outFile << "0\t-\t1.0\t";
-            outFile << endl;
-        }
+        
         outFile.close();
     }
 }
@@ -832,4 +724,21 @@ string trim_chars_left(string mystr,string chars)
     start=mystr.find_first_not_of(chars);
 
     return mystr.substr(start);
+}
+
+bool lcomparison(mNode * n1, mNode * n2)
+{
+    return (n1->left_overlap < n2->left_overlap);
+}
+bool ccomparison(mNode * n1, mNode * n2)
+{
+    return (n1->center_overlap < n2->center_overlap);
+}
+bool rcomparison(mNode * n1, mNode * n2)
+{
+    return (n1->right_overlap < n2->right_overlap);
+}
+bool finalComparison(mNode * n1, mNode * n2)
+{
+    return (n1->center_pvalue < n2->center_pvalue);
 }

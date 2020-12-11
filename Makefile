@@ -24,5 +24,7 @@ CC=g++
 
 CFLAGS=-std=c++11 -lpthread -O3
 
-bufet: bufet2.cpp
+bufet2: bufet2.cpp
 	$(CC) bufet2.cpp -o bufet2.bin $(CFLAGS)
+	$(CC) bufet2-rev.cpp -o bufet2-rev.bin $(CFLAGS)
+	
