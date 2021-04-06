@@ -64,10 +64,10 @@ struct goCatNode
     long int go_size=0;
     double left_overlap_proportion=0;
     double center_overlap_proportion=0;
-    double right_overlap_proportion=0;
     double mean_left_overlap=0;
     double mean_center_overlap=0;
-    double mean_right_overlap=0;
+    double left_pvalue=0;
+    double center_pvalue=0;
 };
 
 
@@ -127,10 +127,10 @@ final_interactions_type finalInteractions;
 bits * map_all;
 vector<goCatNode> checkGO, noCheckGO;
 vector<float> i_counts;
-vector<long int> left_pvalues,right_pvalues,center_pvalues;
 go_names_type goNames;
 unordered_map<string,string_list> synonyms;
 unordered_set<string> genesGo;
+
 /*
  * Global integer variables
  */
@@ -144,7 +144,9 @@ unsigned long int iterations;
 void getInteractions(string);
 void getGOs(string);
 void getRandom(int,int,int);
-void writeOutput(string);
+void writeOutput(string,int);
+void findIntersectionsLeft(int,int);
+void findIntersectionsCenter(int,int);
 void findIntersections(int,int);
 void fixInteractions();
 void getMirnas(string);
@@ -162,6 +164,7 @@ int main(int argc, char* argv[])
     thread_count=atoi(argv[6]);
     thread *t= new thread[thread_count];
     iterations=atoi(argv[5]);
+    int pmode=atoi(argv[10]);
     map_all=new bits[iterations];
     cout << "Reading GO category data" << endl;
     getGOs(argv[4]);
@@ -214,16 +217,43 @@ int main(int argc, char* argv[])
     if (thread_count>1)
     {
         for (int u=0; u<thread_count; u++)
-            t[u]=thread(findIntersections,u,thread_count);
+        {
+            if (pmode==0)
+            {
+                t[u]=thread(findIntersections,u,thread_count);
+            }
+            else if (pmode==1)
+            {
+                t[u]=thread(findIntersectionsLeft,u,thread_count);
+            }
+            else if (pmode==2)
+            {
+                t[u]=thread(findIntersectionsCenter,u,thread_count);
+            }
+        }
         
         for (int u=0; u<thread_count; u++)
             t[u].join();
     }
     else
-        findIntersections(0,1);
+    {
+        if (pmode==0)
+        {
+            findIntersections(0,1);
+        }
+        else if (pmode==1)
+        {
+            findIntersectionsLeft(0,1);
+        }
+        else if (pmode==2)
+        {
+            findIntersectionsCenter(0,1);;
+        }
+        
+    }
     
     cout << "Writing final output" << endl;
-    writeOutput(argv[2]);
+    writeOutput(argv[2],pmode);
 
 
     return 0;
@@ -311,13 +341,9 @@ void getMirnas(string filename)
                 newGO.go_size= git->second->size();
                 // newGO.intersection=intersection;
                 newGO.left_overlap_proportion= intersection/target_genes;
-                newGO.right_overlap_proportion= intersection/total_go;
                 newGO.center_overlap_proportion= intersection/(total_go+target_genes-intersection);
                 newGO.name=goNames[git->first];
                 checkGO.push_back(newGO);
-                left_pvalues.push_back(0);
-                center_pvalues.push_back(0);
-                right_pvalues.push_back(0);
                 GOcount++;
 
             }
@@ -327,9 +353,7 @@ void getMirnas(string filename)
 
                 newGO.category=git->first;
                 newGO.go_size= git->second->size();
-                // newGO.intersection=0;
                 newGO.left_overlap_proportion= 0.0;
-                newGO.right_overlap_proportion= 0.0;
                 newGO.center_overlap_proportion= 0.0;
                 newGO.name=goNames[git->first];
                 noCheckGO.push_back(newGO);
@@ -711,7 +735,7 @@ void findIntersections(int t_num,int inc)
 
     for (int git=t_num; git<total; git+=inc)
     {   
-        
+        double left_pvalue=0,center_pvalue=0;
         go_map=goGenes[checkGO[git].category];
         int total_k=go_map->size();
 
@@ -728,35 +752,133 @@ void findIntersections(int t_num,int inc)
                         intersection++;
             }
             double left_overlap=intersection/i_counts[i];
-            double right_overlap=intersection/total_k;
             double center_overlap=intersection/(i_counts[i]+total_k-intersection);
 
             checkGO[git].mean_left_overlap+=left_overlap;
-            checkGO[git].mean_right_overlap+=right_overlap;
             checkGO[git].mean_center_overlap+=center_overlap;
             if (left_overlap >= checkGO[git].left_overlap_proportion)
             {   
-                left_pvalues[git]++;
-            }
-            if (right_overlap >= checkGO[git].right_overlap_proportion)
-            {   
-                right_pvalues[git]++;
+                left_pvalue++;
             }
             if (center_overlap >= checkGO[git].center_overlap_proportion)
             {   
-                center_pvalues[git]++;
+                center_pvalue++;
             }
             
         }
+        checkGO[git].left_pvalue=left_pvalue;
+        checkGO[git].center_pvalue=center_pvalue;
     }
 }
+
+/*
+ * This function calculates the intsections for all random miRNA sets
+ * for the candidate GO categories and calculate the sets with greater overlap
+ * than the queried one
+ *
+ * @param t_num: the thread number
+ * @param inc : increment step (the number of threads to be used)
+ */
+void findIntersectionsLeft(int t_num,int inc)
+{
+    bits gene_map;
+    vec go_map;
+    /*
+     * Depending on the thread select specific GO categories to check
+     * without overlap between cores
+     */
+    long int total=checkGO.size();
+
+    for (int git=t_num; git<total; git+=inc)
+    {   
+        double left_pvalue=0;
+        go_map=goGenes[checkGO[git].category];
+        int total_k=go_map->size();
+
+        for (unsigned long int i=0; i<iterations; i++)
+        {   
+            bitset<BSIZE> result;
+            double intersection=0;
+
+            gene_map=map_all[i];
+            
+            for (int k=0; k<total_k; k++)
+            {
+                if ((*gene_map)[(*go_map)[k]]==1)
+                        intersection++;
+            }
+            double left_overlap=intersection/i_counts[i];
+
+            checkGO[git].mean_left_overlap+=left_overlap;
+
+            if (left_overlap >= checkGO[git].left_overlap_proportion)
+            {   
+                left_pvalue++;
+            }
+            
+        }
+        checkGO[git].left_pvalue=left_pvalue;
+    }
+}
+
+/*
+ * This function calculates the intsections for all random miRNA sets
+ * for the candidate GO categories and calculate the sets with greater overlap
+ * than the queried one
+ *
+ * @param t_num: the thread number
+ * @param inc : increment step (the number of threads to be used)
+ */
+void findIntersectionsCenter(int t_num,int inc)
+{
+    bits gene_map;
+    vec go_map;
+    /*
+     * Depending on the thread select specific GO categories to check
+     * without overlap between cores
+     */
+    long int total=checkGO.size();
+
+    for (int git=t_num; git<total; git+=inc)
+    {   
+        double left_pvalue=0,center_pvalue=0;
+        go_map=goGenes[checkGO[git].category];
+        int total_k=go_map->size();
+
+        for (unsigned long int i=0; i<iterations; i++)
+        {   
+            bitset<BSIZE> result;
+            double intersection=0;
+
+            gene_map=map_all[i];
+            
+            for (int k=0; k<total_k; k++)
+            {
+                if ((*gene_map)[(*go_map)[k]]==1)
+                        intersection++;
+            }
+            
+            double center_overlap=intersection/(i_counts[i]+total_k-intersection);
+
+            checkGO[git].mean_center_overlap+=center_overlap;
+            
+            if (center_overlap >= checkGO[git].center_overlap_proportion)
+            {   
+                center_pvalue++;
+            }
+            
+        }
+        checkGO[git].center_pvalue=center_pvalue;
+    }
+}
+
 
 /*
  * Write final output to a file
  *
  * @param filename: filename provided by the user
  */
-void writeOutput(string filename)
+void writeOutput(string filename, int pmode)
 {
     ofstream outFile;
     int total_check=checkGO.size(), total_n_check=noCheckGO.size();
@@ -770,16 +892,28 @@ void writeOutput(string filename)
          */
         outFile << "GO-term-ID\tGO-term-size\t";
         outFile << "Observed-Target-Left-Tailed-Overlap-Proportio\tMean-Random-Simulated-Left-Tailed-Overlap-Proportion\tLeft-tailed-empirical-p-value\t"; //Benjamini-Hochberg-0.05-FDR" << endl;
-        outFile << "Observed-Target-Two-Tailed-Overlap-Proportio\tMean-Random-Simulated-Two-Tailed-Overlap-Proportion\tTwo-tailed-empirical-p-value\t";
-        outFile << "Observed-Target-Right-Tailed-Overlap-Proportio\tMean-Random-Simulated-Right-Tailed-Overlap-Proportion\tRight-tailed-empirical-p-value";
+        outFile << "Observed-Target-Two-Tailed-Overlap-Proportio\tMean-Random-Simulated-Two-Tailed-Overlap-Proportion\tTwo-tailed-empirical-p-value";
         outFile << endl;
         for (int i=0; i< total_check ; i++)
         {
             outFile << checkGO[i].category << "~" << checkGO[i].name << "\t";
             outFile << checkGO[i].go_size << "\t";
-            outFile << checkGO[i].left_overlap_proportion << "\t" << checkGO[i].mean_left_overlap/iterations << "\t" << (double) left_pvalues[i]/iterations << "\t";
-            outFile << checkGO[i].center_overlap_proportion << "\t" << checkGO[i].mean_center_overlap/iterations << "\t" << (double) center_pvalues[i]/iterations << "\t";
-            outFile << checkGO[i].right_overlap_proportion << "\t" << checkGO[i].mean_right_overlap/iterations << "\t" << (double) right_pvalues[i]/iterations << "\t";
+            if (pmode!=2)
+            {
+                outFile << checkGO[i].left_overlap_proportion << "\t" << checkGO[i].mean_left_overlap/iterations << "\t" << checkGO[i].left_pvalue/iterations << "\t";
+            }
+            else
+            {
+                outFile << "-\t-\t-\t";
+            }
+            if (pmode!=1)
+            {
+                outFile << checkGO[i].center_overlap_proportion << "\t" << checkGO[i].mean_center_overlap/iterations << "\t" << checkGO[i].center_pvalue/iterations;
+            }else
+            {
+                outFile << "-\t-\t-";
+            }
+
             outFile << endl;
         }
         
@@ -787,9 +921,22 @@ void writeOutput(string filename)
         {
             outFile << noCheckGO[i].category << "~" << noCheckGO[i].name << "\t";
             outFile << noCheckGO[i].go_size << "\t";
-            outFile << "0\t-\t1.0\t";
-            outFile << "0\t-\t1.0\t";
-            outFile << "0\t-\t1.0\t";
+            if (pmode!=2)
+            {
+                outFile << "0\t-\t1.0\t";
+            }
+            else
+            {
+                outFile << "-\t-\t-\t";
+            }
+            if (pmode!=1)
+            {
+                outFile << "0\t-\t1.0\t";
+            }
+            else
+            {
+                outFile << "-\t-\t-\t";
+            }
             outFile << endl;
         }
         outFile.close();
