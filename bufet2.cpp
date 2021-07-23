@@ -890,9 +890,9 @@ void writeOutput(string filename, int pmode)
         /*
          * File header
          */
-        outFile << "GO-term-ID\tGO-term-size\t";
-        outFile << "Observed-Target-Left-Tailed-Overlap-Proportio\tMean-Random-Simulated-Left-Tailed-Overlap-Proportion\tLeft-tailed-empirical-p-value\t"; //Benjamini-Hochberg-0.05-FDR" << endl;
-        outFile << "Observed-Target-Two-Tailed-Overlap-Proportio\tMean-Random-Simulated-Two-Tailed-Overlap-Proportion\tTwo-tailed-empirical-p-value";
+        outFile << "#GO-term-ID\tGO-term-size\t";
+        outFile << "Observed-Target-Left-Sided-Overlap-Proportion\tMean-Random-Simulated-Left-Sided-Overlap-Proportion\tLeft-sided-empirical-p-value\t"; //Benjamini-Hochberg-0.05-FDR" << endl;
+        outFile << "Observed-Target-Two-Sided-Overlap-Proportion\tMean-Random-Simulated-Two-Sided-Overlap-Proportion\tTwo-sided-empirical-p-value";
         outFile << endl;
         for (int i=0; i< total_check ; i++)
         {

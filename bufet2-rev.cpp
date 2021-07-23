@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Konstantinos Zagganas for the Information Management Systems Institute (IMSI) - "Athena" Research Center
+ * Copyright 2021 Konstantinos Zagganas for the Information Management Systems Institute (IMSI) - "Athena" Research Center
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -59,8 +59,8 @@ struct interaction
 struct mNode
 {
     string name;
-    double left_overlap, center_overlap, right_overlap;
-    double left_pvalue, center_pvalue, right_pvalue;
+    double left_overlap, center_overlap;
+    double left_pvalue, center_pvalue;
     int size;
 };
 
@@ -120,7 +120,7 @@ goGenes_type goGenes;
 final_interactions_type finalInteractions;
 bits * map_all;
 vector<float> i_counts;
-vector<long int> left_pvalues,right_pvalues,center_pvalues;
+vector<long int> left_pvalues,center_pvalues;
 go_names_type goNames;
 unordered_map<string,string_list> synonyms;
 unordered_set<string> genesGo;
@@ -146,7 +146,6 @@ void calculateCounts();
 string trim(string mystr);
 string trim_chars_left(string,string);
 void getSynonyms(string,string);
-bool rcomparison(mNode *, mNode *);
 bool lcomparison(mNode *, mNode *);
 bool ccomparison(mNode *, mNode *);
 bool finalComparison(mNode *, mNode *);
@@ -539,7 +538,6 @@ void findPvalues()
                     intersection++;
         }
         node->left_overlap=intersection/mcount;
-        node->right_overlap=intersection/total_k;
         node->center_overlap=intersection/(mcount+total_k-intersection);
 
         mList.push_back(node);
@@ -613,39 +611,6 @@ void findPvalues()
         start=stop-1;
         
     }
-
-    /*
-     * Get right-sided p-values
-     */
-    sort(mList.begin(),mList.end(),rcomparison);
-    total_m=mList.size();
-    stop=total_m-1;
-    start=stop-1;
-
-    for(;(stop>=0 && start>=-1);)
-    {
-        while( ( (start>=0) && (mList[stop]->right_overlap - mList[start]->right_overlap) <1e-7 ) )
-        {
-            start--;
-        }
-        /*
-         * The for any given overlap the p-value is defined as the number of elements in the table,
-         * that are greater or equal to the given sample.
-         * This means that if the overlap is the same as some elements in the sorted table, then
-         * the p-value is proportional to the index of the element with the lowest index. 
-         * So if this index is in position=start+1, the pvalue is total-(position+1)/total
-         * 
-         * This can never lead to zero p-values.
-         */
-        double pvalue=(total_m-(start+1))/total_m;
-        for (int m=start+1; m<=stop; m++)
-        {
-            mList[m]->right_pvalue=pvalue;
-        }
-        stop=start;
-        start=stop-1;
-        
-    }
     
     /*
      * Final sorting using two-sided p-value
@@ -669,17 +634,15 @@ void writeOutput(string filename)
         /*
          * File header
          */
-        outFile << "miRNA name\t#-miRNA-targets\t";
-        outFile << "Left-tailed-empirical-p-value\t"; //Benjamini-Hochberg-0.05-FDR" << endl;
-        outFile << "Two-tailed-empirical-p-value\t";
-        outFile << "Right-tailed-empirical-p-value";
+        outFile << "#miRNA name\tNo-of-miRNA-targets\t";
+        outFile << "Left-sided-empirical-p-value\t"; //Benjamini-Hochberg-0.05-FDR" << endl;
+        outFile << "Two-sided-empirical-p-value\t";
         outFile << endl;
         for (long unsigned int mi=0; mi < mList.size() ; mi++)
         {
             outFile << mList[mi]->name << "\t" << mList[mi]->size << "\t";
             outFile << mList[mi]->left_pvalue << "\t";
             outFile << mList[mi]->center_pvalue << "\t";
-            outFile << mList[mi]->right_pvalue << "\t";
             outFile << endl;
         }
         
@@ -733,10 +696,6 @@ bool lcomparison(mNode * n1, mNode * n2)
 bool ccomparison(mNode * n1, mNode * n2)
 {
     return (n1->center_overlap < n2->center_overlap);
-}
-bool rcomparison(mNode * n1, mNode * n2)
-{
-    return (n1->right_overlap < n2->right_overlap);
 }
 bool finalComparison(mNode * n1, mNode * n2)
 {
