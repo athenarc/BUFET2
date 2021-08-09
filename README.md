@@ -182,27 +182,21 @@ cd datasets
 3. Run the software (using Docker) using KEGG and miRTarBase:
     1. Alzheimer's disease:
     ```bash
-    docker run --rm -v $(pwd):/data diwis/bufet2 python3 /home/bufet2/bufet2.py -miRNA /data/inputs/alzheimers_mirnas.txt -annotations /data/interactions/mirtarbase.txt -interactions /data/annotations/kegg.csv -iterations 1000000 -output /data/output_alz.txt --no-synonyms
+    docker run --rm -v $(pwd):/data diwis/bufet2 python3 /home/bufet2/bufet2.py -miRNA /data/inputs/alzheimers_mirnas.txt -interactions /data/interactions/mirtarbase.txt -annotations /data/annotations/kegg.csv -iterations 1000000 -output /data/output_alz.txt --no-synonyms
 
     ```
     2. Breast cancer:
     ```bash
-    docker run --rm -v $(pwd):/data diwis/bufet2 python3 /home/bufet2/bufet2.py -miRNA /data/inputs/breast_cancer_mirnas.txt -annotations /data/interactions/mirtarbase.txt -interactions /data/annotations/kegg.csv -iterations 1000000 -output /data/output_br.txt --no-synonyms
+    docker run --rm -v $(pwd):/data diwis/bufet2 python3 /home/bufet2/bufet2.py -miRNA /data/inputs/breast_cancer_mirnas.txt -interactions /data/interactions/mirtarbase.txt -annotations /data/annotations/kegg.csv -iterations 1000000 -output /data/output_br.txt --no-synonyms
 
     ```
     3. Gastric cancer:
     ```bash
-    docker run --rm -v $(pwd):/data diwis/bufet2 python3 /home/bufet2/bufet2.py -miRNA /data/inputs/gastric_cancer_mirnas.txt -annotations /data/interactions/mirtarbase.txt -interactions /data/annotations/kegg.csv -iterations 1000000 -output /data/output_gas.txt --no-synonyms
+    docker run --rm -v $(pwd):/data diwis/bufet2 python3 /home/bufet2/bufet2.py -miRNA /data/inputs/gastric_cancer_mirnas.txt -interactions /data/interactions/mirtarbase.txt -annotations /data/annotations/kegg.csv -iterations 1000000 -output /data/output_gas.txt --no-synonyms
 
     ```
     4. Non-small cell lung cancer:
     ```bash
-    docker run --rm -v $(pwd):/data diwis/bufet2 python3 /home/bufet2/bufet2.py -miRNA /data/inputs/non_small_cell_lung_cancer_mirnas.txt -annotations /data/interactions/mirtarbase.txt -interactions /data/annotations/kegg.csv -iterations 1000000 -output /data/output_nscl.txt --no-synonyms
+    docker run --rm -v $(pwd):/data diwis/bufet2 python3 /home/bufet2/bufet2.py -miRNA /data/inputs/non_small_cell_lung_cancer_mirnas.txt -interactions /data/interactions/mirtarbase.txt -annotations /data/annotations/kegg.csv -iterations 1000000 -output /data/output_nscl.txt --no-synonyms
 
     ```
-
-
-
-
-
-
