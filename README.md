@@ -149,17 +149,17 @@ to disable matching for gene synonyms. In this case a synonyms file is not requi
         ```bash
         python3 bufet2.py -miRNA data/<mirna_filename> -annotations data/<gene_class_filename> -output data/output.txt -iterations 1000000 -synonyms data/<synonyms_file_name>    
         ```
-    with synonyms enabled or
+        with synonyms enabled or 
         ```bash
         python3 bufet2.py -miRNA data/<mirna_filename> -annotations data/<gene_class_filename> -output data/output.txt -iterations 1000000 --no-synonyms   
         ```
-    to run with synonyms disabled. This should produce a file output.txt in the data folder.
+        to run with synonyms disabled. This should produce a file output.txt in the data folder.
     
     2. Using Docker image:
         ```bash
         run --rm -v data:/data diwis/bufet2 python3 /home/bufet2/bufet2.py -miRNA /data/<mirna_filename> -ontology /data/<gene_class_filename> -iterations 1000000 -synonyms /data/<synonyms_file_name> 
         ```
-    with synonyms enabled or 
+        with synonyms enabled or 
         ```bash
         run --rm -v data:/data diwis/bufet2 python3 /home/bufet2/bufet2.py -miRNA /data/<mirna_filename> -ontology /data/<gene_class_filename> -iterations 1000000 --no-synonyms
         ```
