@@ -124,7 +124,7 @@ genedata genes, miRNAs;
 geneInteractions interactions;
 goGenes_type goGenes;
 final_interactions_type finalInteractions;
-bits * map_all;
+vector < bitset<BSIZE> >  * map_all;
 vector<goCatNode> checkGO, noCheckGO;
 vector<float> i_counts;
 go_names_type goNames;
@@ -165,8 +165,9 @@ int main(int argc, char* argv[])
     thread *t= new thread[thread_count];
     iterations=atoi(argv[5]);
     int pmode=atoi(argv[10]);
-    map_all=new bits[iterations];
-    cout << "Reading GO category data" << endl;
+    cout << "Allocating required RAM" << endl;
+    map_all=new vector< bitset <BSIZE> >(iterations);
+    cout << "Reading annotation data" << endl;
     getGOs(argv[4]);
     if (stoi(argv[9])==0)
     {
@@ -661,7 +662,7 @@ bool prepareRandom(int size)
         iterations=total_interactions;
         for (final_interactions_type::iterator fit=finalInteractions.begin(); fit!=finalInteractions.end(); fit++, j++)
         {
-            map_all[j]=fit->second;
+            (*map_all)[j]|=(*fit->second);
         }
         return true;
 
@@ -702,7 +703,7 @@ void getRandom(int size,int t_num, int inc)
          * 
          * Bitwise OR for to calculate targeted genes
          */
-        bits gene_map=new bitset<BSIZE>;
+        bits gene_map=&((*map_all)[i]);
         
         for (int j=0; j<size; j++)
         {
@@ -710,7 +711,8 @@ void getRandom(int size,int t_num, int inc)
             id=randMirna(gen);
             (*gene_map) |=(*finalInteractions[id]);
         }
-        map_all[i]=gene_map;
+
+        
     }
     
 }
@@ -744,7 +746,7 @@ void findIntersections(int t_num,int inc)
             bitset<BSIZE> result;
             double intersection=0;
 
-            gene_map=map_all[i];
+            gene_map=&(*map_all)[i];
             
             for (int k=0; k<total_k; k++)
             {
@@ -800,7 +802,7 @@ void findIntersectionsLeft(int t_num,int inc)
             bitset<BSIZE> result;
             double intersection=0;
 
-            gene_map=map_all[i];
+            gene_map=&(*map_all)[i];
             
             for (int k=0; k<total_k; k++)
             {
@@ -850,7 +852,7 @@ void findIntersectionsCenter(int t_num,int inc)
             bitset<BSIZE> result;
             double intersection=0;
 
-            gene_map=map_all[i];
+            gene_map=&(*map_all)[i];
             
             for (int k=0; k<total_k; k++)
             {
@@ -909,7 +911,8 @@ void writeOutput(string filename, int pmode)
             if (pmode!=1)
             {
                 outFile << checkGO[i].center_overlap_proportion << "\t" << checkGO[i].mean_center_overlap/iterations << "\t" << checkGO[i].center_pvalue/iterations;
-            }else
+            }
+            else
             {
                 outFile << "-\t-\t-";
             }
@@ -950,7 +953,7 @@ void calculateCounts()
 {
     for (unsigned long int i=0; i< iterations; i++)
     {
-        i_counts.push_back((float)(map_all[i])->count());
+        i_counts.push_back((float)((*map_all)[i]).count());
     }
 }
 

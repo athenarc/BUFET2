@@ -10,10 +10,6 @@ WORKDIR /home/bufet2/
 
 COPY . /home/bufet2
 
-# RUN mv /home/bufet2/BUFET2/* /home/bufet2/
-
-# RUN rm BUFET2 -rf
-
 RUN make
 
 

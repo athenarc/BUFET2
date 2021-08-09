@@ -113,20 +113,20 @@ def checkInteractionsFile(interactions_file):
     f.close()
     print("OK!")
 
-def checkOntologyFile(ontology_file):
+def checkAnnotationsFile(annotations_file):
     ##
-    #Check ontology file
+    #Check annotations file
     ##
-    print('Checking ontology file...')
+    print('Checking annotations file...')
     try:
-        if os.stat(ontology_file).st_size == 0:
-            print('\nError: Ontology file "' + ontology_file + '" is empty.\n')
+        if os.stat(annotations_file).st_size == 0:
+            print('\nError: annotations file "' + annotations_file + '" is empty.\n')
             exit(3)
     except OSError:
-        print('\nError: Ontology file "' + ontology_file + '" does not exist.\n')
+        print('\nError: annotations file "' + annotations_file + '" does not exist.\n')
         exit(3)
 
-    f=open(ontology_file)
+    f=open(annotations_file)
     i=1
     nameMissing=False
     for line in f:
@@ -136,17 +136,17 @@ def checkOntologyFile(ontology_file):
             continue
         linetmp=line.strip().split('\t')
         if len(linetmp)>1:
-            print('\nError: The wrong delimiter ("\\t") is used in the ontology file in line ' + str(i) +'. Perhaps you are using a wrong file type?')
+            print('\nError: The wrong delimiter ("\\t") is used in the annotations file in line ' + str(i) +'. Perhaps you are using a wrong file type?')
             exit(2)
         line=line.strip().split('|')
         if len(line)<3 :
-            print('\nError: There was a problem with the ontology file in line ' + str(i) +'. Please check that the file is using the correct format and try again.')
+            print('\nError: There was a problem with the annotations file in line ' + str(i) +'. Please check that the file is using the correct format and try again.')
             exit(3)
         if line[0]=='' or line[0].isspace():
-            print('\nError: The gene is missing in the ontology file in line ' + str(i) +'. Please check that the file is using the correct format and try again.')
+            print('\nError: The gene is missing in the annotations file in line ' + str(i) +'. Please check that the file is using the correct format and try again.')
             exit(3)
         if line[1]=='' or line[1].isspace():
-            print('\nError: The term is missing in the ontology file in line ' + str(i) +'. Please check that the file is using the correct format and try again.')
+            print('\nError: The term is missing in the annotations file in line ' + str(i) +'. Please check that the file is using the correct format and try again.')
             exit(3)
         if line[2]=='' or line[2].isspace():
             nameMissing=True
@@ -154,7 +154,7 @@ def checkOntologyFile(ontology_file):
         i+=1
     f.close()
     if nameMissing:
-            print('Warning: Some ontology terms are missing a name! Execution will continue normally...')
+            print('Warning: Some annotations terms are missing a name! Execution will continue normally...')
     else:
         print("OK!")
     
@@ -189,16 +189,17 @@ def checkSynonymsFile(synonyms_file):
 #Print help message
 def printOptions():
     print('Usage:\n\t\tpython bufet.py [options]\n\nMandatory arguments:\n')
-    print('\t-ontQuery <filePath>: path to the ontology query file')
+    print('\t-ontQuery <filePath>: path to the annotations query file')
     print('\t-interactions filePath>: path to the interactions file')
-    print('\t-ontology <filePath>: path to the ontology file')
+    print('\t-annotations <filePath>: path to the annotations file')
     print('\t-synonyms <filePath>: path to the synonyms file\n')
     print('Additional options:\n')
     print('\t-output <filePath>: path to the output file (will be overwritten if it exists)')
     print('\t-species: "human" or "mouse"')
+    print('\t--no-synonyms: disable synonym matching')
     print('\t--disable-file-check: (quicker but not recommended) disable all file validations.')
     print('\t--disable-interactions-check: (quicker but not recommended) disable existence and file format validation for the interactions file.')
-    print('\t--disable-ontology-check: (quicker but not recommended) disable existence and file format validation for the ontology file.')
+    print('\t--disable-annotations-check: (quicker but not recommended) disable existence and file format validation for the annotations file.')
     print('\t--disable-synonyms-check: (quicker but not recommended) disable existence and file format validation for the synonyms file.')
     print('\t--disable-synonyms-check: (quicker but not recommended) disable existence and file format validation for the synonyms file.')
     print('\t--help: print this message and exit')
@@ -208,7 +209,7 @@ available_species={'human':'9606','mouse':'10090'}
 options = {}
 
 options['-ontQuery'] = ''
-options['-ontology'] = ''
+options['-annotations'] = ''
 options['-interactions'] = ''
 options['-output'] = 'output.txt'
 options['-species'] = 'human'
@@ -217,7 +218,7 @@ options['-disable-file-check']='no'
 options['-help']='no'
 options['-disable-interactions-check']='no'
 options['-disable-synonyms-check']='no'
-options['-disable-ontology-check']='no'
+options['-disable-annotations-check']='no'
 options['-print-involved-genes']='no'
 options['-involved-genes-filename']='involved-genes.txt'
 options['-no-synonyms']='no'
@@ -275,13 +276,13 @@ if not os.path.exists(executable):
 
 #Check that parameters are valid
 if options['-ontQuery']=='':
-    print('\nError: No ontology query file specified!')
+    print('\nError: No annotations query file specified!')
     exit(1)
 if options['-interactions']=='':
     print('\nError: No interactions file specified!')
     exit(1)
-if options['-ontology']=='':
-    print('\nError: No ontology file specified!')
+if options['-annotations']=='':
+    print('\nError: No annotations file specified!')
     exit(1)
 if (options['-synonyms']=='') and (disableSynonyms=='0'):
     print('\nError: No synonyms file specified!')
@@ -302,10 +303,10 @@ if options['-disable-file-check']=='no':
         checkInteractionsFile(os.path.abspath(options['-interactions']))
     else:
         print('Warning: Interactions file validation has been disabled.')
-    if options['-disable-ontology-check']=='no':
-        checkOntologyFile(os.path.abspath(options['-ontology']))
+    if options['-disable-annotations-check']=='no':
+        checkAnnotationsFile(os.path.abspath(options['-annotations']))
     else:
-        print('Warning: Ontology file validation has been disabled.')
+        print('Warning: annotations file validation has been disabled.')
     if disableSynonyms=='0':
         if options['-disable-synonyms-check']=='no':
             checkSynonymsFile(os.path.abspath(options['-synonyms']))
@@ -318,5 +319,5 @@ else:
 
 #run script
 print('Starting BUFET in reverse querying mode\n................\n')
-return_code=subprocess.call([executable,options['-interactions'],options['-output'],options['-ontQuery'],options['-ontology'],options['-synonyms'],available_species[options['-species']],disableSynonyms])
+return_code=subprocess.call([executable,options['-interactions'],options['-output'],options['-ontQuery'],options['-annotations'],options['-synonyms'],available_species[options['-species']],disableSynonyms])
 

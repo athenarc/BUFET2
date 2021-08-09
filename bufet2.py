@@ -113,20 +113,20 @@ def checkInteractionsFile(interactions_file):
     f.close()
     print("OK!")
 
-def checkOntologyFile(ontology_file):
+def checkAnnotationsFile(annotations_file):
     ##
-    #Check ontology file
+    #Check annotations file
     ##
-    print('Checking ontology file...')
+    print('Checking annotations file...')
     try:
-        if os.stat(ontology_file).st_size == 0:
-            print('\nError: Ontology file "' + ontology_file + '" is empty.\n')
+        if os.stat(annotations_file).st_size == 0:
+            print('\nError: Annotations file "' + annotations_file + '" is empty.\n')
             exit(3)
     except OSError:
-        print('\nError: Ontology file "' + ontology_file + '" does not exist.\n')
+        print('\nError: Annotations file "' + annotations_file + '" does not exist.\n')
         exit(3)
 
-    f=open(ontology_file)
+    f=open(annotations_file)
     i=1
     nameMissing=False
     for line in f:
@@ -136,17 +136,17 @@ def checkOntologyFile(ontology_file):
             continue
         linetmp=line.strip().split('\t')
         if len(linetmp)>1:
-            print('\nError: The wrong delimiter ("\\t") is used in the ontology file in line ' + str(i) +'. Perhaps you are using a wrong file type?')
+            print('\nError: The wrong delimiter ("\\t") is used in the annotations file in line ' + str(i) +'. Perhaps you are using a wrong file type?')
             exit(2)
         line=line.strip().split('|')
         if len(line)<3 :
-            print('\nError: There was a problem with the ontology file in line ' + str(i) +'. Please check that the file is using the correct format and try again.')
+            print('\nError: There was a problem with the annotations file in line ' + str(i) +'. Please check that the file is using the correct format and try again.')
             exit(3)
         if line[0]=='' or line[0].isspace():
-            print('\nError: The gene is missing in the ontology file in line ' + str(i) +'. Please check that the file is using the correct format and try again.')
+            print('\nError: The gene is missing in the annotations file in line ' + str(i) +'. Please check that the file is using the correct format and try again.')
             exit(3)
         if line[1]=='' or line[1].isspace():
-            print('\nError: The term is missing in the ontology file in line ' + str(i) +'. Please check that the file is using the correct format and try again.')
+            print('\nError: The term is missing in the annotations file in line ' + str(i) +'. Please check that the file is using the correct format and try again.')
             exit(3)
         if line[2]=='' or line[2].isspace():
             nameMissing=True
@@ -154,7 +154,7 @@ def checkOntologyFile(ontology_file):
         i+=1
     f.close()
     if nameMissing:
-            print('Warning: Some ontology terms are missing a name! Execution will continue normally...')
+            print('Warning: Some annotations terms are missing a name! Execution will continue normally...')
     else:
         print("OK!")
     
@@ -191,16 +191,21 @@ def printOptions():
     print('Usage:\n\t\tpython bufet.py [options]\n\nMandatory arguments:\n')
     print('\t-miRNA <filePath>: path to the miRNA group file')
     print('\t-interactions filePath>: path to the interactions file')
-    print('\t-ontology <filePath>: path to the ontology file')
+    print('\t-annotations <filePath>: path to the annotations file')
     print('\t-synonyms <filePath>: path to the synonyms file\n')
     print('Additional options:\n')
-    print('\t-iterations: number of random permutations')
-    print('\t-output <filePath>: path to the output file (will be overwritten if it exists)')
+    print('\t-iterations: number of random permutations. Default 1000000')
+    print('\t-output <filePath>: path to the output file (will be overwritten if it exists). Default: output.txt')
     print('\t-processors: number of threads to use for calculations')
     print('\t-species: "human" or "mouse"')
+    print('\t--no-synonyms: disable synonym matching')
+    print('\t--left-sided-only: calculate only left-sided p-values')
+    print('\t--two-sided-only: calculate only left-sided p-values')
+    print('\t--print-involved-genes: after BUFET2 run a script that for each gene class calculates the genes targeted by the miRNA group')
+    print('\t-involved-genes-filename <filePath>: path to the involved genes output file; works only when --print-involved-genes is invoked. Default: involved-genes.txt')
     print('\t--disable-file-check: (quicker but not recommended) disable all file validations.')
     print('\t--disable-interactions-check: (quicker but not recommended) disable existence and file format validation for the interactions file.')
-    print('\t--disable-ontology-check: (quicker but not recommended) disable existence and file format validation for the ontology file.')
+    print('\t--disable-annotations-check: (quicker but not recommended) disable existence and file format validation for the annotations file.')
     print('\t--disable-synonyms-check: (quicker but not recommended) disable existence and file format validation for the synonyms file.')
     print('\t--disable-synonyms-check: (quicker but not recommended) disable existence and file format validation for the synonyms file.')
     print('\t--help: print this message and exit')
@@ -210,21 +215,23 @@ available_species={'human':'9606','mouse':'10090'}
 options = {}
 
 options['-processors'] = str(max(1,multiprocessing.cpu_count() - 1))
-options['-iterations'] = '10000'
+options['-iterations'] = '1000000'
 options['-miRNA'] = ''
-options['-ontology'] = ''
+options['-annotations'] = ''
 options['-interactions'] = ''
 options['-output'] = 'output.txt'
 options['-species'] = 'human'
-options['-synonyms'] = ''
+options['-synonyms'] = 'gene_info'
 options['-disable-file-check']='no'
 options['-help']='no'
 options['-disable-interactions-check']='no'
 options['-disable-synonyms-check']='no'
-options['-disable-ontology-check']='no'
+options['-disable-annotations-check']='no'
 options['-print-involved-genes']='no'
 options['-involved-genes-filename']='involved-genes.txt'
 options['-no-synonyms']='no'
+options['-left-sided-only']='no'
+options['-two-sided-only']='no'
 
 #Read command line arguments
 i=1
@@ -269,6 +276,14 @@ if options['-no-synonyms']=='no':
 else:
     disableSynonyms='1'
 
+# Check p-value mode
+if options['-left-sided-only']=='no' and options['-two-sided-only']=='yes':
+    pmode='2'
+elif options['-left-sided-only']=='yes' and options['-two-sided-only']=='no':
+    pmode='1'
+else:
+    pmode='0'
+
 #Find script path, which must be the same as the executable
 script_path=os.path.dirname(os.path.realpath(__file__))
 executable=script_path+'/bufet2.bin'
@@ -284,8 +299,8 @@ if options['-miRNA']=='':
 if options['-interactions']=='':
     print('\nError: No interactions file specified!')
     exit(1)
-if options['-ontology']=='':
-    print('\nError: No ontology file specified!')
+if options['-annotations']=='':
+    print('\nError: No annotations file specified!')
     exit(1)
 if (options['-synonyms']=='') and (disableSynonyms=='0'):
     print('\nError: No synonyms file specified!')
@@ -313,10 +328,10 @@ if options['-disable-file-check']=='no':
         checkInteractionsFile(os.path.abspath(options['-interactions']))
     else:
         print('Warning: Interactions file validation has been disabled.')
-    if options['-disable-ontology-check']=='no':
-        checkOntologyFile(os.path.abspath(options['-ontology']))
+    if options['-disable-annotations-check']=='no':
+        checkAnnotationsFile(os.path.abspath(options['-annotations']))
     else:
-        print('Warning: Ontology file validation has been disabled.')
+        print('Warning: Annotations file validation has been disabled.')
     if disableSynonyms=='0':
         if options['-disable-synonyms-check']=='no':
             checkSynonymsFile(os.path.abspath(options['-synonyms']))
@@ -328,12 +343,11 @@ else:
     print('Warning: File validation is disabled.')
 
 #run script
-print('Starting BUFET\n................\n')
-return_code=subprocess.call([executable,options['-interactions'],options['-output'],options['-miRNA'],options['-ontology'], options['-iterations'], options['-processors'],options['-synonyms'],available_species[options['-species']],disableSynonyms])
-
+print('Starting BUFET2\n................\n',flush=True)
+return_code=subprocess.call([executable,options['-interactions'],options['-output'],options['-miRNA'],options['-annotations'], options['-iterations'], options['-processors'],options['-synonyms'],available_species[options['-species']],disableSynonyms,pmode])
 
 
 if (options['-print-involved-genes']!='no'):
     print('Calculating genes involved')
-    subprocess.call(['python','calculate_involved_genes.py',options['-ontology'],options['-interactions'],options['-miRNA'],options['-synonyms'],options['-involved-genes-filename'],available_species[options['-species']]])
+    subprocess.call(['python','calculate_involved_genes.py',options['-annotations'],options['-interactions'],options['-miRNA'],options['-synonyms'],options['-involved-genes-filename'],available_species[options['-species']]])
 
