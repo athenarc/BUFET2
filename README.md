@@ -105,7 +105,7 @@ The script options are listed below (all required options are marked with * )::
 </pre>
 
 #### 2.2.2.4. Adding more species for synonym matching
-Open bufet.py and in line 212 add the label you want to use for the species and the taxonomy ID inside the dictionary, enclosed by single or double quotes (', "). The script can now be run using the new label as an argument to the "-species" option.
+Open bufet2.py and in line 214 add the label you want to use for the species and the taxonomy ID inside the dictionary, enclosed by single or double quotes (', "). The script can now be run using the new label as an argument to the "-species" option.
 
 #### 2.2.2.5. Print target genes involved in each annotation class
 Use the argument
@@ -224,12 +224,11 @@ The script options are listed below (all required options are marked with * ):
 "--disable-interactions-check": (quicker but not recommended) disable existence and file format validation for the interactions file.
 "--disable-annotations-check": (quicker but not recommended) disable existence and file format validation for the annotations file.
 "--disable-synonyms-check": (quicker but not recommended) disable existence and file format validation for the synonyms file.
-"--disable-synonyms-check": (quicker but not recommended) disable existence and file format validation for the synonyms file.
 "--help": print this message and exit
 </pre>
 
 #### 3.2.4. Adding more species for synonym matching
-Open bufet.py and in line 212 add the label you want to use for the species and the taxonomy ID inside the dictionary, enclosed by single or double quotes (', "). The script can now be run using the new label as an argument to the "-species" option.
+Open bufet.py and in line 207 add the label you want to use for the species and the taxonomy ID inside the dictionary, enclosed by single or double quotes (', "). The script can now be run using the new label as an argument to the "-species" option.
 
 
 #### 3.2.5. Disable gene synonym matching

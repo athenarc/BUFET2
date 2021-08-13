@@ -188,7 +188,7 @@ def checkSynonymsFile(synonyms_file):
 
 #Print help message
 def printOptions():
-    print('Usage:\n\t\tpython bufet.py [options]\n\nMandatory arguments:\n')
+    print('Usage:\n\t\tpython3 bufet2.py [options]\n\nMandatory arguments:\n')
     print('\t-miRNA <filePath>: path to the miRNA group file')
     print('\t-interactions filePath>: path to the interactions file')
     print('\t-annotations <filePath>: path to the annotations file')

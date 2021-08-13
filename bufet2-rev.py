@@ -188,7 +188,7 @@ def checkSynonymsFile(synonyms_file):
 
 #Print help message
 def printOptions():
-    print('Usage:\n\t\tpython bufet.py [options]\n\nMandatory arguments:\n')
+    print('Usage:\n\t\tpython3 bufet2.py [options]\n\nMandatory arguments:\n')
     print('\t-annQuery <filePath>: path to the annotations query file')
     print('\t-interactions filePath>: path to the interactions file')
     print('\t-annotations <filePath>: path to the annotations file')
@@ -200,7 +200,6 @@ def printOptions():
     print('\t--disable-file-check: (quicker but not recommended) disable all file validations.')
     print('\t--disable-interactions-check: (quicker but not recommended) disable existence and file format validation for the interactions file.')
     print('\t--disable-annotations-check: (quicker but not recommended) disable existence and file format validation for the annotations file.')
-    print('\t--disable-synonyms-check: (quicker but not recommended) disable existence and file format validation for the synonyms file.')
     print('\t--disable-synonyms-check: (quicker but not recommended) disable existence and file format validation for the synonyms file.')
     print('\t--help: print this message and exit')
 
