@@ -82,12 +82,12 @@ docker run --rm -v data:/data diwis/bufet2 python3 /home/bufet2/bufet2.py [OPTIO
 
 By default, the python script verifies that all input files exist, that they are not empty and that they have the correct format. Since the file check leads to increased execution times, it can be disabled by using the "--disable-file-check". However, we recommend that the file check remains enabled, since non-existing or empty files can crash the C++ core.
 
-The script options are listed below:
+The script options are listed below (all required options are marked with * )::
 <pre>
-"-miRNA [filename]": path to the input miRNA file.
-"-interactions [filename]": path to miRNA-gene interactions file.
+"-miRNA [filename]*": path to the input miRNA file.
+"-interactions [filename]*": path to miRNA-gene interactions file.
 "-synonyms [filename]": path to the gene synonym data file.
-"-annotations [filename]": path to gene annotation data file.
+"-annotations [filename]*": path to gene annotation data file.
 "-output [filename]": path to output file. Created if it doesn't exist. Default: "output.txt"
 "-iterations [value]": number of random miRNA groups to test against. Default value: 1000000
 "-processors [value]": the number of cores to be used in parallel. Default value: system cores-1.
@@ -147,26 +147,120 @@ to disable matching for gene synonyms. In this case a synonyms file is not requi
 2. Run the following:
     1. Using compiled script:
         ```bash
-        python3 bufet2.py -miRNA data/<mirna_filename> -annotations data/<gene_class_filename> -output data/output.txt -iterations 1000000 -synonyms data/<synonyms_file_name>    
+        python3 bufet2.py -miRNA data/<mirna_filename> -annotations data/<gene_class_filename> -interactions data/<interactions_filename> -output data/output.txt -iterations 1000000 -synonyms data/<synonyms_file_name>    
         ```
         with synonyms enabled or 
         ```bash
-        python3 bufet2.py -miRNA data/<mirna_filename> -annotations data/<gene_class_filename> -output data/output.txt -iterations 1000000 --no-synonyms   
+        python3 bufet2.py -miRNA data/<mirna_filename> -annotations data/<gene_class_filename> -interactions data/<interactions_filename> -output data/output.txt -iterations 1000000 --no-synonyms   
         ```
         to run with synonyms disabled. This should produce a file output.txt in the data folder.
     
     2. Using Docker image:
         ```bash
-        run --rm -v data:/data diwis/bufet2 python3 /home/bufet2/bufet2.py -miRNA /data/<mirna_filename> -ontology /data/<gene_class_filename> -iterations 1000000 -synonyms /data/<synonyms_file_name> 
+        run --rm -v data:/data diwis/bufet2 python3 /home/bufet2/bufet2.py -miRNA /data/<mirna_filename> -ontology /data/<gene_class_filename> -interactions data/<interactions_filename> -iterations 1000000 -synonyms /data/<synonyms_file_name> 
         ```
         with synonyms enabled or 
         ```bash
-        run --rm -v data:/data diwis/bufet2 python3 /home/bufet2/bufet2.py -miRNA /data/<mirna_filename> -ontology /data/<gene_class_filename> -iterations 1000000 --no-synonyms
+        run --rm -v data:/data diwis/bufet2 python3 /home/bufet2/bufet2.py -miRNA /data/<mirna_filename> -ontology /data/<gene_class_filename>  -interactions data/<interactions_filename> -iterations 1000000 --no-synonyms
         ```
     to run with synonyms disabled. This should produce a file output.txt in the data folder.
 
-## Using the BUFET2 reverse search module:
-TODO
+## 3. Using the BUFET2 reverse search module:
+### 3.1 Prerequisites
+
+1. Input miRNA file, which is a text file containing the name of only one gene class. For example:
+<pre>
+GO:0008150
+</pre>
+
+2. Gene synonym data file from NCBI, http://ftp.ncbi.nih.gov/gene/DATA/GENE_INFO/Mammalia/All_Mammalia.gene_info.gz. Decompress the file with:
+```bash
+gzip -d All_Mammalia.gene_info.gz
+```
+    
+3. Gene annotation data file retrieved by GO, KEGG, PANTHER, DisGeNET, etc. The file must contain the following CSV format for each line:
+<pre>
+gene_name|pathway_id|pathway_name
+</pre>
+
+4. miRNA-gene interactions file, which has the following CSV format for each line:
+<pre>
+miRNA_name|gene_name
+</pre>
+Note that all files listed above can contain header lines starting with the "#" character.
+
+### 3.2 Script Execution
+#### 3.2.1. Using the compiled source code
+
+Navigate inside the folder containing the .py and .bin files and run the following command:
+```bash
+python3 bufet2-rev.py [OPTIONS]
+```
+
+#### 3.2.2. Using the Docker image
+1. Create a folder containing the files:
+```bash
+mkdir data
+```
+2. Run the script
+```bash
+docker run --rm -v data:/data diwis/bufet2 python3 /home/bufet2/bufet2-rev.py [OPTIONS]
+```
+
+#### 3.2.3. Options
+
+By default, the python script verifies that all input files exist, that they are not empty and that they have the correct format. Since the file check leads to increased execution times, it can be disabled by using the "--disable-file-check". However, we recommend that the file check remains enabled, since non-existing or empty files can crash the C++ core.
+
+The script options are listed below (all required options are marked with * ):
+<pre>
+"-annQuery [filePath]": path to the annotations query file
+"-interactions [filePath]": path to the interactions file
+"-annotations [filePath]": path to the annotations file
+"-synonyms [filePath]": path to the synonyms file
+"-output [filePath]": path to the output file (will be overwritten if it exists
+"-species: "human" or "mouse"
+"--no-synonyms": disable synonym matching
+"--disable-file-check": (quicker but not recommended) disable all file validations.
+"--disable-interactions-check": (quicker but not recommended) disable existence and file format validation for the interactions file.
+"--disable-annotations-check": (quicker but not recommended) disable existence and file format validation for the annotations file.
+"--disable-synonyms-check": (quicker but not recommended) disable existence and file format validation for the synonyms file.
+"--disable-synonyms-check": (quicker but not recommended) disable existence and file format validation for the synonyms file.
+"--help": print this message and exit
+</pre>
+
+#### 3.2.4. Adding more species for synonym matching
+Open bufet.py and in line 212 add the label you want to use for the species and the taxonomy ID inside the dictionary, enclosed by single or double quotes (', "). The script can now be run using the new label as an argument to the "-species" option.
+
+
+#### 3.2.5. Disable gene synonym matching
+Use the argument
+<pre>
+--no-synonyms
+</pre>
+to disable matching for gene synonyms. In this case a synonyms file is not required and if one is provided, it will be ignored.
+
+#### 3.2.6. Example
+1. Collect all input files inside the "data" folder.
+2. Run the following:
+    1. Using compiled script:
+        ```bash
+        python3 bufet2-rev.py -annQuery data/<annotation_query_filename> -annotations data/<gene_class_filename> -interactions data/<interactions_filename> -output data/output.txt -synonyms data/<synonyms_file_name>    
+        ```
+        with synonyms enabled or 
+        ```bash
+        python3 bufet2-rev.py -annQuery data/<annotation_query_filename> -annotations data/<gene_class_filename> -interactions data/<interactions_filename> -output data/output.txt --no-synonyms   
+        ```
+        to run with synonyms disabled. This should produce a file output.txt in the data folder.
+    
+    2. Using Docker image:
+        ```bash
+        run --rm -v data:/data diwis/bufet2 python3 /home/bufet2/bufet2-rev.py -annQuery data/<annotation_query_filename> -annotations data/<gene_class_filename> -output data/output.txt -interactions data/<interactions_filename> -synonyms data/<synonyms_file_name> 
+        ```
+        with synonyms enabled or 
+        ```bash
+        run --rm -v data:/data diwis/bufet2 python3 /home/bufet2/bufet2-rev.py -annQuery data/<annotation_query_filename> -annotations data/<gene_class_filename> -output data/output.txt -interactions data/<interactions_filename> --no-synonyms  
+        ```
+    to run with synonyms disabled. This should produce a file output.txt in the data folder.
 
 ## 4. Reproduction of the BUFET paper's experiments
 The dataset.zip file contains all files required to reproduce the p-values experiments contained in the paper. The input miRNA lists are contained in the `inputs/` folder, the gene class data files are contained in the `annotations/` folder and the miRNA-to-gene datasets are contained in the `interactions/` folder.

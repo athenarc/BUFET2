@@ -189,7 +189,7 @@ def checkSynonymsFile(synonyms_file):
 #Print help message
 def printOptions():
     print('Usage:\n\t\tpython bufet.py [options]\n\nMandatory arguments:\n')
-    print('\t-ontQuery <filePath>: path to the annotations query file')
+    print('\t-annQuery <filePath>: path to the annotations query file')
     print('\t-interactions filePath>: path to the interactions file')
     print('\t-annotations <filePath>: path to the annotations file')
     print('\t-synonyms <filePath>: path to the synonyms file\n')
@@ -208,7 +208,7 @@ commandLine=sys.argv
 available_species={'human':'9606','mouse':'10090'}
 options = {}
 
-options['-ontQuery'] = ''
+options['-annQuery'] = ''
 options['-annotations'] = ''
 options['-interactions'] = ''
 options['-output'] = 'output.txt'
@@ -275,7 +275,7 @@ if not os.path.exists(executable):
     exit(5)
 
 #Check that parameters are valid
-if options['-ontQuery']=='':
+if options['-annQuery']=='':
     print('\nError: No annotations query file specified!')
     exit(1)
 if options['-interactions']=='':
@@ -298,7 +298,7 @@ if (options['-species'] not in available_species) and (disableSynonyms=='0'):
 
 #Check files if not disabled
 if options['-disable-file-check']=='no':
-    checkQueryFile(os.path.abspath(options['-ontQuery']))
+    checkQueryFile(os.path.abspath(options['-annQuery']))
     if options['-disable-interactions-check']=='no':
         checkInteractionsFile(os.path.abspath(options['-interactions']))
     else:
@@ -319,5 +319,5 @@ else:
 
 #run script
 print('Starting BUFET in reverse querying mode\n................\n')
-return_code=subprocess.call([executable,options['-interactions'],options['-output'],options['-ontQuery'],options['-annotations'],options['-synonyms'],available_species[options['-species']],disableSynonyms])
+return_code=subprocess.call([executable,options['-interactions'],options['-output'],options['-annQuery'],options['-annotations'],options['-synonyms'],available_species[options['-species']],disableSynonyms])
 
