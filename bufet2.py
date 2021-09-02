@@ -343,11 +343,11 @@ else:
     print('Warning: File validation is disabled.')
 
 #run script
-print('Starting BUFET2\n................\n',flush=True)
+print('Starting BUFET2\n................',flush=True)
 return_code=subprocess.call([executable,options['-interactions'],options['-output'],options['-miRNA'],options['-annotations'], options['-iterations'], options['-processors'],options['-synonyms'],available_species[options['-species']],disableSynonyms,pmode])
 
 
 if (options['-print-involved-genes']!='no'):
     print('Calculating genes involved')
-    subprocess.call(['python3','calculate_involved_genes.py',options['-annotations'],options['-interactions'],options['-miRNA'],options['-synonyms'],options['-involved-genes-filename'],available_species[options['-species']]])
+    subprocess.call(['python3',script_path+'/calculate_involved_genes.py',options['-annotations'],options['-interactions'],options['-miRNA'],options['-synonyms'],options['-involved-genes-filename'],available_species[options['-species']],disableSynonyms])
 

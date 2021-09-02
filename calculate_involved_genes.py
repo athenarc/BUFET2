@@ -125,13 +125,18 @@ outFile=sys.argv[5]
 taxid=''
 if len(sys.argv)>=6:
     taxid=sys.argv[6]
+disableSynonyms='0'
+if len(sys.argv)>=7:
+    disableSynonyms=sys.argv[7]
 
 ontology,ontologyNames,ontologyGenes=readOntology(ontologyFile)
 interactions=readInteractions(interactionsFile)
 mirnas=readMirnas(mirnaFile)
-if taxid!='':
-    synonyms=readSynonyms(synonymsFile,taxid)
-interactions=matchSysnonyms(synonyms,ontology,ontologyGenes,interactions)
+if disableSynonyms=='0':
+    if taxid!='':
+        synonyms=readSynonyms(synonymsFile,taxid)
+if disableSynonyms=='0':
+    interactions=matchSysnonyms(synonyms,ontology,ontologyGenes,interactions)
 
 g=open(outFile,'w')
 for category in ontology:
