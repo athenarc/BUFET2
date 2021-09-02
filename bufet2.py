@@ -349,5 +349,5 @@ return_code=subprocess.call([executable,options['-interactions'],options['-outpu
 
 if (options['-print-involved-genes']!='no'):
     print('Calculating genes involved')
-    subprocess.call(['python','calculate_involved_genes.py',options['-annotations'],options['-interactions'],options['-miRNA'],options['-synonyms'],options['-involved-genes-filename'],available_species[options['-species']]])
+    subprocess.call(['python3','calculate_involved_genes.py',options['-annotations'],options['-interactions'],options['-miRNA'],options['-synonyms'],options['-involved-genes-filename'],available_species[options['-species']]])
 
