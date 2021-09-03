@@ -25,6 +25,7 @@ import subprocess
 import os
 import multiprocessing
 
+
 def isNaturalNumber(s):
     try:
         myf=int(s)
